@@ -152,6 +152,44 @@ RUN if [ ${INSTALL_MONGO} = true ]; then \
   && docker-php-ext-enable mongodb \
   ;fi
 
+
+# Install SQL SERVER drivers:
+
+ARG INSTALL_MSSQL=false
+
+RUN set -eux; \
+  if [ ${INSTALL_MSSQL} = true ]; then \
+    
+    #Note: The php7-pdo package is required only for the PDO_SQLSRV driver
+    apk update \
+    && apk add php7 php7-dev php7-pear php7-pdo php7-openssl autoconf make unixodbc-dev g++ \ 
+    
+    #Download the desired package(s)
+    && curl -O https://download.microsoft.com/download/e/4/e/e4e67866-dffd-428c-aac7-8d28ddafb39b/msodbcsql17_17.6.1.1-1_amd64.apk \
+    && curl -O https://download.microsoft.com/download/e/4/e/e4e67866-dffd-428c-aac7-8d28ddafb39b/mssql-tools_17.6.1.1-1_amd64.apk \
+
+
+    #(Optional) Verify signature, if 'gpg' is missing install it using 'apk add gnupg':
+    && apk add gnupg \
+    && curl -O https://download.microsoft.com/download/e/4/e/e4e67866-dffd-428c-aac7-8d28ddafb39b/msodbcsql17_17.6.1.1-1_amd64.sig \
+    && curl -O https://download.microsoft.com/download/e/4/e/e4e67866-dffd-428c-aac7-8d28ddafb39b/mssql-tools_17.6.1.1-1_amd64.sig \
+
+    && curl https://packages.microsoft.com/keys/microsoft.asc  | gpg --import - \
+    && gpg --verify msodbcsql17_17.6.1.1-1_amd64.sig msodbcsql17_17.6.1.1-1_amd64.apk \
+    && gpg --verify mssql-tools_17.6.1.1-1_amd64.sig mssql-tools_17.6.1.1-1_amd64.apk \
+
+
+    #Install the package(s)
+    &&  apk add --allow-untrusted msodbcsql17_17.6.1.1-1_amd64.apk \
+    && apk add --allow-untrusted mssql-tools_17.6.1.1-1_amd64.apk \
+    
+    && pecl install sqlsrv \
+    && pecl install pdo_sqlsrv \
+    && echo extension=pdo_sqlsrv.so >> `php --ini | grep "Scan for additional .ini files" | sed -e "s|.*:\s*||"`/10_pdo_sqlsrv.ini \
+    && echo extension=sqlsrv.so >> `php --ini | grep "Scan for additional .ini files" | sed -e "s|.*:\s*||"`/00_sqlsrv.ini \
+  ;fi
+
+
 ###########################################################################
 # YAML: extension
 ###########################################################################
